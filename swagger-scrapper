@@ -1,0 +1,42 @@
+#!/usr/bin/env node
+'use strict';
+
+var assert = require('assert');
+var fs = require('fs');
+var os = require('os');
+var _ = require('lodash');
+var async = require('async');
+var scraperjs = require('scraperjs');
+
+var sourceList = fs.readFileSync('/dev/stdin').toString();
+sourceList = sourceList.split(os.EOL);
+sourceList = _(sourceList).compact().uniq().value();
+
+var tasks = _.map(sourceList, function (value){
+  return _.curry(scrape)(value);
+});
+
+scraperjs.DynamicScraper.startFactory()
+async.parallelLimit(tasks, 20, function (err, result) {
+  console.log(result);
+  scraperjs.DynamicScraper.closeFactory()
+})
+
+function scrape(url, cb) {
+  console.log(url);
+  scraperjs.DynamicScraper.create(url)
+      .onError(function(errors) {
+        console.log(errors);
+      })
+      .scrape(function() {
+          var options = window.swaggerUi.options;
+          return options.url || options.discoveryUrl;
+      })
+      .done(function (utils) {
+        sourceList = _.without(sourceList, url);
+        console.log(url);
+        console.log(sourceList);
+        console.log('Left ' + _.size(sourceList));
+        cb(null, utils.lastReturn);
+      });
+}
