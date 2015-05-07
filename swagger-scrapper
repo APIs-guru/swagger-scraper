@@ -1,42 +1,54 @@
-#!/usr/bin/env node
+#!./phantomjs --ssl-protocol=any --ignore-ssl-errors=true --web-security=false
 'use strict';
-
-var assert = require('assert');
-var fs = require('fs');
-var os = require('os');
+var system = require('system');
 var _ = require('lodash');
-var async = require('async');
-var scraperjs = require('scraperjs');
+var webpage = require('webpage');
 
-var sourceList = fs.readFileSync('/dev/stdin').toString();
-sourceList = sourceList.split(os.EOL);
-sourceList = _(sourceList).compact().uniq().value();
+console.log(system.args);
+var url = system.args[1];
 
-var tasks = _.map(sourceList, function (value){
-  return _.curry(scrape)(value);
+var page = webpage.create();
+page.settings.loadImages = false;
+page.settings.userAgent = 'Mozilla/5.0 (Windows NT 6.1; rv:31.0) Gecko/20100101 Firefox/31.0';
+
+page.onConsoleMessage = function(msg) {
+  console.log('> ' + msg);
+};
+
+page.open(url, function(status) {
+  var swagger = scrapePage();
+
+  if (_.isUndefined(swagger))
+    phantom.exit(255);
+  console.log(swagger);
+  phantom.exit(0);
 });
 
-scraperjs.DynamicScraper.startFactory()
-async.parallelLimit(tasks, 20, function (err, result) {
-  console.log(result);
-  scraperjs.DynamicScraper.closeFactory()
-})
+function scrapePage() {
+  var swagger = scrapeSwaggerUi();
 
-function scrape(url, cb) {
-  console.log(url);
-  scraperjs.DynamicScraper.create(url)
-      .onError(function(errors) {
-        console.log(errors);
-      })
-      .scrape(function() {
-          var options = window.swaggerUi.options;
-          return options.url || options.discoveryUrl;
-      })
-      .done(function (utils) {
-        sourceList = _.without(sourceList, url);
-        console.log(url);
-        console.log(sourceList);
-        console.log('Left ' + _.size(sourceList));
-        cb(null, utils.lastReturn);
-      });
+  for (var i = 0; i < page.framesCount; ++i) {
+    page.switchToChildFrame(i);
+    var result = scrapeSwaggerUi();
+    page.switchToParentFrame();
+
+    if (result) {
+      if (swagger)
+        console.log('duplicate');
+      swagger = result;
+    }
+  }
+  return swagger;
+}
+
+function scrapeSwaggerUi() {
+  return page.evaluate(function() {
+    if (!window.swaggerUi) {
+      console.log('missing swaggerUi');
+      return;
+    }
+    var options = window.swaggerUi.options;
+    console.log('options:' + options);
+    return options.url || options.discoveryUrl;
+  });
 }
