@@ -1,5 +1,7 @@
-#!./phantomjs --ssl-protocol=any --ignore-ssl-errors=true --web-security=false
+#!/usr/bin/phantomjs --ssl-protocol=any --ignore-ssl-errors=true --web-security=false
+// vim: set ft=javascript:
 'use strict';
+
 var system = require('system');
 var _ = require('lodash');
 var webpage = require('webpage');
