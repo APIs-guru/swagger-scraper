@@ -6,25 +6,44 @@ var system = require('system');
 var _ = require('lodash');
 var webpage = require('webpage');
 
-console.log(system.args);
-var url = system.args[1];
+var debugMode = false;
 
 var page = webpage.create();
 page.settings.loadImages = false;
 page.settings.userAgent = 'Mozilla/5.0 (Windows NT 6.1; rv:31.0) Gecko/20100101 Firefox/31.0';
 
-page.onConsoleMessage = function(msg) {
+if (debugMode) {
+  page.onConsoleMessage = function(msg) {
   console.log('> ' + msg);
-};
+  }
+}
+else {
+  //Suppress calltraces from page
+  page.onError = function () {}
+}
 
-page.open(url, function(status) {
-  var swagger = scrapePage();
+var urls = _.drop(system.args);
+function run() {
+  if (_.isEmpty(urls)) {
+    phantom.exit(0);
+    return;
+  }
 
-  if (_.isUndefined(swagger))
-    phantom.exit(255);
-  console.log(swagger);
-  phantom.exit(0);
-});
+  processURL(urls.shift(), run);
+}
+run();
+
+function processURL(url, cb) {
+  console.log(url);
+  page.open(url, function(status) {
+    var swagger = scrapePage();
+
+    //if (_.isUndefined(swagger))
+    //  phantom.exit(255);
+    console.log(swagger);
+    cb();
+  });
+}
 
 function scrapePage() {
   var swagger = scrapeSwaggerUi();
@@ -36,7 +55,7 @@ function scrapePage() {
 
     if (result) {
       if (swagger)
-        console.log('duplicate');
+        throw 'duplicate swaggerUi';
       swagger = result;
     }
   }
