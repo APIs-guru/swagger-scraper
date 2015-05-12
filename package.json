@@ -23,6 +23,8 @@
   },
   "preferGlobal": true,
   "dependencies": {
-    "lodash": "~3.6.0"
+    "URIjs": "~1.15.1",
+    "lodash": "~3.6.0",
+    "phantomjs": "git://github.com/Medium/phantomjs"
   }
 }

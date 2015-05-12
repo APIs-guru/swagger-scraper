@@ -1,75 +1,66 @@
-#!/usr/bin/phantomjs --ssl-protocol=any --ignore-ssl-errors=true --web-security=false
-// vim: set ft=javascript:
+#!/usr/bin/env node
 'use strict';
 
-var system = require('system');
-var _ = require('lodash');
-var webpage = require('webpage');
+var execFile = require('child_process').execFile;
+var URI = require('URIjs');
+var request = require('request');
+var assert = require('assert');
+var phantomjs = require('phantomjs').path;
 
-var debugMode = false;
+var url = process.argv[2];
+scrape(url, function (data) {
+  processSwagger(data, processResult);
+});
 
-var page = webpage.create();
-page.settings.loadImages = false;
-page.settings.userAgent = 'Mozilla/5.0 (Windows NT 6.1; rv:31.0) Gecko/20100101 Firefox/31.0';
+function scrape(url, cb) {
+  console.log(url);
+  var args = [
+    '--ssl-protocol=any',
+    '--ignore-ssl-errors=true',
+    '--web-security=false',
+    __dirname + '/scraper.js',
+    url
+  ];
+  execFile(phantomjs, args, function(err, stdout, stderr) {
+    if (err) throw err;
 
-if (debugMode) {
-  page.onConsoleMessage = function(msg) {
-  console.log('> ' + msg);
-  }
+    // Sometimes an error in the loaded page's JavaScript doesn't get picked up or thrown?
+    // But the error comes in via stdout and causes JSON parsing to break
+    try {
+        var data = JSON.parse(stdout);
+    } catch(err) {
+        log('Whoops! Seems there was an error? You\'ll find the stack trace below.');
+        console.log(stdout);
+        error(err);
+    }
+    cb(data);
+  });
 }
-else {
-  //Suppress calltraces from page
-  page.onError = function () {}
+
+function processResult(data) {
+  console.log(JSON.stringify(data));
 }
 
-var urls = _.drop(system.args);
-function run() {
-  if (_.isEmpty(urls)) {
-    phantom.exit(0);
+function processSwagger(data, cb) {
+  if (data.swagger) {
+    var uri = new URI(data.swagger);
+    if (uri.is('relative'))
+      data.swagger = uri.absoluteTo(data.url).toString();
+
+    request(data.swagger, function (error, response, body) {
+      assert(!error && response.statusCode === 200);
+      data.version = JSON.parse(body).swaggerVersion;
+      cb(data);
+    })
     return;
   }
-
-  processURL(urls.shift(), run);
-}
-run();
-
-function processURL(url, cb) {
-  console.log(url);
-  page.open(url, function(status) {
-    var swagger = scrapePage();
-
-    //if (_.isUndefined(swagger))
-    //  phantom.exit(255);
-    console.log(swagger);
-    cb();
-  });
+  cb(data);
 }
 
-function scrapePage() {
-  var swagger = scrapeSwaggerUi();
-
-  for (var i = 0; i < page.framesCount; ++i) {
-    page.switchToChildFrame(i);
-    var result = scrapeSwaggerUi();
-    page.switchToParentFrame();
-
-    if (result) {
-      if (swagger)
-        throw 'duplicate swaggerUi';
-      swagger = result;
-    }
-  }
-  return swagger;
+function log(message) {
+    process.stdout.write(message + '\n');
 }
 
-function scrapeSwaggerUi() {
-  return page.evaluate(function() {
-    if (!window.swaggerUi) {
-      console.log('missing swaggerUi');
-      return;
-    }
-    var options = window.swaggerUi.options;
-    console.log('options:' + options);
-    return options.url || options.discoveryUrl;
-  });
+function error(err) {
+    process.stderr.write(err);
 }
