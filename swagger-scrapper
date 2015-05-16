@@ -46,13 +46,6 @@ function processSwagger(data, cb) {
     var uri = new URI(data.swagger);
     if (uri.is('relative'))
       data.swagger = uri.absoluteTo(data.url).toString();
-
-    request(data.swagger, function (error, response, body) {
-      assert(!error && response.statusCode === 200);
-      data.version = JSON.parse(body).swaggerVersion;
-      cb(data);
-    })
-    return;
   }
   cb(data);
 }

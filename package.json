@@ -2,7 +2,6 @@
   "name": "google-discovery-to-swagger",
   "version": "0.0.1",
   "description": "Script for converting Google Discovery format into Swagger 2.0",
-  "main": "src/index.js",
   "repository": {
     "type": "git",
     "url": "git://github.com/APIs-guru/swagger-scraper.git"
