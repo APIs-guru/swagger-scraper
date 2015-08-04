@@ -1,7 +1,7 @@
 {
-  "name": "google-discovery-to-swagger",
+  "name": "swagger-scraper",
   "version": "0.0.1",
-  "description": "Script for converting Google Discovery format into Swagger 2.0",
+  "description": "Tool for scraping swagger files from websites that using SwaggerUI.",
   "repository": {
     "type": "git",
     "url": "git://github.com/APIs-guru/swagger-scraper.git"
